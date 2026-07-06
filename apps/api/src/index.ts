@@ -13,7 +13,7 @@ const app = new Elysia()
   .use(openapi())
   .post("/api/v1/chat/completions", async ({ status, bearer: apiKey, body }) => {
     const model = body.model;
-    const [_companyName, providerModelName] = model.split("/");
+    const providerModelName = model.split("/").slice(1).join("/");
     const apiKeyDb = await prisma.apiKey.findFirst({
       where: {
         apiKey,
@@ -21,12 +21,13 @@ const app = new Elysia()
         deleted: false
       },
       select: {
+        id: true,
         user: true
       }
     })
 
     if (!apiKeyDb) {
-      return status(403, {
+      return status(401, {
         message: "Invalid api key"
       })
     }
@@ -44,7 +45,7 @@ const app = new Elysia()
     })
 
     if (!modelDb) {
-      return status(403, {
+      return status(400, {
         message: "This is an invalid model we dont support"
       })
     }
@@ -59,6 +60,12 @@ const app = new Elysia()
     })
 
     const provider = providers[Math.floor(Math.random() * providers.length)];
+
+    if (!provider) {
+      return status(404, {
+        message: "No provider found for this model"
+      })
+    }
 
     let response: LlmResponse | null = null
     if (provider.provider.name === "Google API") {
@@ -78,35 +85,49 @@ const app = new Elysia()
     }
 
     if (!response) {
-      return status(403, {
+      return status(404, {
         message: "No provider found for this model"
       })
     }
 
     const creditsUsed = (response.inputTokensConsumed * provider.inputTokenCost + response.outputTokensConsumed * provider.outputTokenCost) / 10;
-    console.log(creditsUsed);
-    const res = await prisma.user.update({
-      where: {
-        id: apiKeyDb.user.id
-      },
-      data: {
-        credits: {
-          decrement: creditsUsed
+    const lastUserMessage = [...body.messages].reverse().find(m => m.role === "user")?.content ?? "";
+    const assistantContent = response.completions.choices[0]?.message.content ?? "";
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: {
+          id: apiKeyDb.user.id
+        },
+        data: {
+          credits: {
+            decrement: creditsUsed
+          }
         }
-      }
-    });
-    console.log(res)
-    const res2 = await prisma.apiKey.update({
-      where: {
-        apiKey: apiKey
-      },
-      data: {
-        creditsConsumed: {
-          increment: creditsUsed
+      }),
+      prisma.apiKey.update({
+        where: {
+          apiKey: apiKey
+        },
+        data: {
+          creditsConsumed: {
+            increment: creditsUsed
+          },
+          lastUsed: new Date()
         }
-      }
-    })
-    console.log(res2)
+      }),
+      prisma.conversation.create({
+        data: {
+          userId: apiKeyDb.user.id,
+          apiKeyId: apiKeyDb.id,
+          modelProviderMappingId: provider.id,
+          input: lastUserMessage,
+          output: assistantContent,
+          inputTokenCount: response.inputTokensConsumed,
+          outputTokenCount: response.outputTokensConsumed
+        }
+      })
+    ]);
 
     return response;
   }, {

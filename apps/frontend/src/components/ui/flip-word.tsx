@@ -23,11 +23,11 @@ function FlipWords({
   const localRef = React.useRef<HTMLSpanElement>(null)
   React.useImperativeHandle(ref as any, () => localRef.current as HTMLSpanElement)
 
-  const [currentWord, setCurrentWord] = React.useState(words[0])
+  const [currentWord, setCurrentWord] = React.useState(words[0] ?? "")
   const [isAnimating, setIsAnimating] = React.useState<boolean>(false)
 
   const startAnimation = React.useCallback(() => {
-    const word = words[words.indexOf(currentWord) + 1] || words[0]
+    const word = words[words.indexOf(currentWord) + 1] || words[0] || ""
     setCurrentWord(word)
     setIsAnimating(true)
   }, [currentWord, words])

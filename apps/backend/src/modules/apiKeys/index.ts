@@ -12,13 +12,17 @@ export const app = new Elysia({ prefix: "api-keys" })
     )
     .resolve(async ({ cookie: { auth }, status, jwt}) => {
         if (!auth) {
-            return status(401)
+            return status(401, {
+                message: "Unauthorized"
+            })
         }
 
         const decoded = await jwt.verify(auth.value as string);
 
         if (!decoded || !decoded.userId) {
-            return status(401)
+            return status(401, {
+                message: "Unauthorized"
+            })
         }
 
         return {
@@ -47,9 +51,9 @@ export const app = new Elysia({ prefix: "api-keys" })
             200: ApiKeyModel.getApiKeysResponseSchema
         }
     })
-    .put("/", ({ body, userId, status }) => {
+    .put("/", async ({ body, userId, status }) => {
         try {
-            ApiKeyService.updateApiKeyDisabled(Number(body.id), Number(userId), body.disabled);
+            await ApiKeyService.updateApiKeyDisabled(Number(body.id), Number(userId), body.disabled);
             return {
                 message: "Updated api key successfully"
             }

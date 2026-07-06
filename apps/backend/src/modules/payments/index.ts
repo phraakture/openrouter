@@ -12,13 +12,17 @@ export const app = new Elysia({ prefix: "payments" })
     )
     .resolve(async ({ cookie: { auth }, status, jwt }) => {
         if (!auth) {
-            return status(401)
+            return status(401, {
+                message: "Unauthorized"
+            })
         }
 
         const decoded = await jwt.verify(auth.value as string);
 
         if (!decoded || !decoded.userId) {
-            return status(401)
+            return status(401, {
+                message: "Unauthorized"
+            })
         }
 
         return {

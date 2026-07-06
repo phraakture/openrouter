@@ -1,6 +1,6 @@
 import { treaty } from "@elysiajs/eden";
 import type { App } from "backend";
-import { createContext, useContext } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 
 const client = treaty<App>('localhost:3000', {
   fetch: {
@@ -10,7 +10,14 @@ const client = treaty<App>('localhost:3000', {
 
 const ElysiaClientContext = createContext(client);
 
-export const ElysiaClientContextProvider = ElysiaClientContext.Provider;
+export function ElysiaClientProvider({ children }: { children: ReactNode }) {
+  return (
+    <ElysiaClientContext.Provider value={client}>
+      {children}
+    </ElysiaClientContext.Provider>
+  );
+}
+
 export const useElysiaClient = () => {
   const client = useContext(ElysiaClientContext);
   return client;

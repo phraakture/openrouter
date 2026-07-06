@@ -26,7 +26,7 @@ const buildKeyframes = (
 
   const keyframes: Record<string, Array<string | number>> = {}
   keys.forEach(k => {
-    keyframes[k] = [from[k], ...steps.map(s => s[k])]
+    keyframes[k] = [from[k]!, ...steps.map(s => s[k]!)]
   })
   return keyframes
 }
@@ -55,6 +55,7 @@ const BlurText: React.FC<BlurTextProps> = ({
     }
     const observer = new IntersectionObserver(
       ([entry]) => {
+        if (!entry) return
         if (entry.isIntersecting) {
           setInView(true)
           observer.unobserve(ref.current as Element)

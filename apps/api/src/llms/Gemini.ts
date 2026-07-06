@@ -2,14 +2,19 @@ import { Messages } from "../types";
 import { BaseLlm, LlmResponse } from "./Base";
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GOOGLE_API_KEY
-});
-
+let ai: GoogleGenAI | null = null;
+function getClient() {
+  if (!ai) {
+    ai = new GoogleGenAI({
+      apiKey: process.env.GOOGLE_API_KEY
+    });
+  }
+  return ai;
+}
 
 export class Gemini extends BaseLlm {
   static async chat(model: string, messages: Messages): Promise<LlmResponse> {
-    const response = await ai.models.generateContent({
+    const response = await getClient().models.generateContent({
       model: model,
       contents: messages.map(message => ({
         text: message.content,

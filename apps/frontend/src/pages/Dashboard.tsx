@@ -38,7 +38,7 @@ export function Dashboard() {
   const apiKeys = apiKeysQuery.data?.apiKeys ?? [];
   const activeKeys = apiKeys.filter((k) => !k.disabled);
   const totalCreditsUsed = apiKeys.reduce(
-    (sum, k) => sum + (k.credisConsumed ?? 0),
+    (sum, k) => sum + (k.creditsConsumed ?? 0),
     0
   );
   const modelCount = modelsQuery.data?.models?.length ?? 0;
@@ -207,7 +207,7 @@ export function Dashboard() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">
-                        {(key.credisConsumed ?? 0).toLocaleString()}
+                        {(key.creditsConsumed ?? 0).toLocaleString()}
                       </td>
                     </tr>
                   ))}
