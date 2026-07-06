@@ -1,53 +1,44 @@
 # OpenRouter
 
-A self-hosted LLM routing API that proxies requests across multiple AI providers — OpenAI, Anthropic, Google Gemini — through a single OpenAI-compatible endpoint. Built with Bun, Elysia, Prisma, and React.
-
-## What it does
-
-- Routes chat completion requests to the cheapest or most available provider for a given model
-- Tracks per-key credit usage and deducts based on token cost per provider
-- Lets users manage API keys, top up credits, and browse available models through a dashboard
+Self-hosted LLM routing API with an OpenAI-compatible `/chat/completions` endpoint. Routes requests across OpenAI, Anthropic, and Google Gemini providers; tracks per-key credit usage.
 
 ## Stack
 
-| Layer         | Technology                           |
-| ------------- | ------------------------------------ |
-| Runtime       | Bun                                  |
-| API framework | Elysia                               |
-| Database ORM  | Prisma (PostgreSQL)                  |
-| Frontend      | React 19, Tailwind CSS v4, shadcn/ui |
-| Monorepo      | Turborepo                            |
+- Runtime: Bun
+- API/backend: Elysia
+- Database: PostgreSQL + Prisma
+- Frontend: React 19 + Tailwind CSS v4 + shadcn/ui
+- Monorepo: Turborepo
 
-**Apps**
+## Project structure
 
-- `apps/backend` — auth, API key management, model catalog, payments (port 3000)
-- `apps/api` — the actual LLM proxy endpoint (port 4000)
-- `apps/frontend` — dashboard UI (port 3001)
-- `packages/db` — shared Prisma client
+```
+apps/
+  api/          # LLM proxy, port 4000
+  backend/      # Auth, API keys, models, payments, port 3000
+  frontend/     # Dashboard, port 3001
+packages/
+  db/           # Prisma schema + client
+  ui/           # Shared React components
+  eslint-config/
+  typescript-config/
+```
 
-## Prerequisites
-
-- [Bun](https://bun.sh) >= 1.2
-- PostgreSQL database
-- API keys for the providers you want to support (OpenAI, Anthropic, Google)
-
-## Getting started
+## Setup
 
 ```bash
-git clone https://github.com/acegikmoo/openrouter
-cd openrouter
 bun install
 ```
 
-Set up environment variables. Create `.env` files in `apps/backend`, `apps/api`, and `packages/db`:
+Create `.env` files:
 
 ```env
 # packages/db/.env
 DATABASE_URL=postgresql://user:password@localhost:5432/openrouter
 
 # apps/backend/.env
-JWT_SECRET=your-jwt-secret
 DATABASE_URL=postgresql://user:password@localhost:5432/openrouter
+JWT_SECRET=your-jwt-secret
 
 # apps/api/.env
 DATABASE_URL=postgresql://user:password@localhost:5432/openrouter
@@ -56,20 +47,20 @@ ANTHROPIC_API_KEY=sk-ant-...
 GOOGLE_API_KEY=...
 ```
 
-Run database migrations:
+Run migrations:
 
 ```bash
 cd packages/db
-bunx prisma migrate deploy
+bunx prisma migrate deploy --config prisma.config.ts
 ```
 
-Start all services:
+## Run
 
 ```bash
 bun dev
 ```
 
-Or run a specific app:
+Or individually:
 
 ```bash
 turbo dev --filter=backend
@@ -79,7 +70,7 @@ turbo dev --filter=api
 
 ## API usage
 
-The proxy is OpenAI-compatible. Point your existing client at `http://localhost:4000`:
+### Non-streaming
 
 ```bash
 curl http://localhost:4000/api/v1/chat/completions \
@@ -87,39 +78,39 @@ curl http://localhost:4000/api/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "anthropic/claude-3-5-sonnet",
-    "messages": [{ "role": "user", "content": "Hello" }]
+    "messages": [{"role": "user", "content": "Hello"}]
   }'
 ```
 
-The `model` field follows the format `company/model-name`. The backend resolves which provider to use and handles billing automatically.
+### Streaming
 
-## Database schema overview
+```bash
+curl http://localhost:4000/api/v1/chat/completions \
+  -H "Authorization: Bearer sk-or-v1-yourkey" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "openai/gpt-4o",
+    "messages": [{"role": "user", "content": "Hello"}],
+    "stream": true
+  }'
+```
 
-- `User` — email/password auth, credit balance
-- `ApiKey` — per-user keys with credit tracking and enable/disable toggle
-- `Model` + `Company` — model catalog
-- `Provider` + `ModelProviderMapping` — maps models to providers with per-token pricing
-- `OnrampTransaction` — credit top-up history
+Model format: `company/model-name`. Provider selection is random across mapped providers.
+
+## Database schema
+
+- `User` — email/password, credit balance
+- `ApiKey` — per-user keys, credit tracking, disabled/deleted flags
+- `Company` + `Model` — model catalog
+- `Provider` + `ModelProviderMapping` — provider mappings and per-token pricing
+- `OnrampTransaction` — credit top-ups
 - `Conversation` — request logs
 
-## Project structure
+## Credit formula
 
 ```
-.
-├── apps/
-│   ├── api/          # LLM proxy (Elysia, port 4000)
-│   ├── backend/      # REST API (Elysia, port 3000)
-│   └── frontend/     # Dashboard (React, port 3001)
-└── packages/
-    ├── db/           # Prisma schema + client
-    └── ui/           # Shared React components
+credits = (inputTokens * inputTokenCost + outputTokens * outputTokenCost) / 10
 ```
-
-## Development notes
-
-- The frontend uses Eden Treaty for end-to-end type-safe API calls — no manual type definitions needed for client-server communication
-- Provider selection for a model is currently random across all mapped providers. You can extend `apps/api/src/index.ts` to implement cost-based or latency-based routing
-- Credits are stored as integers. The current formula is `(inputTokens * inputCost + outputTokens * outputCost) / 10`
 
 ## License
 
