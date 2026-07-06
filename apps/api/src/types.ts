@@ -12,5 +12,9 @@ export type Messages = typeof Messages.static;
 
 export const Conversation = t.Object({
   model: t.String(),
-  messages: Messages
+  messages: Messages,
+  stream: t.Optional(t.Boolean()),
+  stream_options: t.Optional(t.Object({
+    include_usage: t.Optional(t.Boolean())
+  }))
 })
